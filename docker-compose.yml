@@ -1,0 +1,39 @@
+version: "3.9"
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq-local
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+  k6:
+    build:
+      context: ./k6
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+      - EXCHANGE=k6.exchange
+      - QUEUE=k6.queue
+      - ROUTING_KEY=k6.key
+      - EXCHANGE_KIND=direct
+      - VUS=32
+      - DURATION=30s
+      - CONSUME_LIMIT=1000
+    volumes:
+      - ./k6:/scripts:ro
+      - ./k6/reports:/reports
+    entrypoint: ["/usr/local/bin/k6", "run", "/scripts/amqp_stress.js", "--summary-export", "/reports/summary.json"]
