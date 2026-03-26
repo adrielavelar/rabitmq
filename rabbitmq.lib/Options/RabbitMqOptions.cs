@@ -29,4 +29,9 @@ public sealed class RabbitMqOptions
     public TimeSpan NetworkRecoveryInterval { get; init; } = TimeSpan.FromSeconds(10);
     /// <summary>Timeout padrão para publisher confirms.</summary>
     public TimeSpan PublishConfirmTimeout { get; init; } = TimeSpan.FromSeconds(10);
+    /// <summary>
+    /// Número de channels no pool de publicação. Cada channel é protegido por um SemaphoreSlim.
+    /// Valores recomendados: entre 2 e 10. Padrão: 5.
+    /// </summary>
+    public int PublishChannelPoolSize { get; init; } = 5;
 }

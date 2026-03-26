@@ -11,6 +11,9 @@ public interface IRabbitMqBus : IAsyncDisposable
     /// <summary>Conecta ao RabbitMQ usando as opções configuradas.</summary>
     Task ConnectAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Indica se a connection subjacente está aberta e operacional.</summary>
+    bool IsConnected { get; }
+
     /// <summary>Declara uma exchange caso não exista.</summary>
     Task DeclareExchangeAsync(string exchange, string type = "direct", bool durable = true, bool autoDelete = false, IDictionary<string, object?>? args = null, CancellationToken ct = default);
 

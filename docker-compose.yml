@@ -1,39 +1,78 @@
-version: "3.9"
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: rabbitmq-local
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672"       # AMQP
+      - "15672:15672"     # Management UI  →  http://localhost:15672
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    # Aumenta limites para suportar carga elevada
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
+
+  bombardier:
+    build:
+      context: .
+      dockerfile: rabbitmq.consumption/Dockerfile
+    container_name: rabbitmq-bombardier
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      RABBITMQ_VHOST: "/"
+      # Controles do bombardeio
+      STRESS_TOTAL: "500000"        # total de mensagens (modo stress)
+      STRESS_PARALLEL: "16"         # workers de publicação (modo stress)
+      STRESS_PREFETCH: "500"        # prefetch do consumidor
+      STRESS_POOL_SIZE: "8"         # tamanho do pool de channels
+      STRESS_BATCH_REPORT: "10000"  # a cada N msgs processadas, loga progresso
+      # Modo: "stress" (bombardeio único) | "server" (connection permanente)
+      MODE: "server"
+      SERVER_BATCH: "50"            # msgs publicadas por burst (modo server)
+      SERVER_INTERVAL_MS: "2000"    # intervalo entre bursts em ms (modo server)
+    restart: "no"
+
   k6:
     build:
       context: ./k6
       dockerfile: Dockerfile
+    profiles: ["k6"]   # sobe apenas com:  docker compose --profile k6 up k6
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     environment:
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASS=guest
-      - EXCHANGE=k6.exchange
-      - QUEUE=k6.queue
-      - ROUTING_KEY=k6.key
-      - EXCHANGE_KIND=direct
-      - VUS=32
-      - DURATION=30s
-      - CONSUME_LIMIT=1000
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      EXCHANGE: k6.exchange
+      QUEUE: k6.queue
+      ROUTING_KEY: k6.key
+      EXCHANGE_KIND: direct
+      VUS: "32"
+      DURATION: 30s
+      CONSUME_LIMIT: "1000"
     volumes:
       - ./k6:/scripts:ro
       - ./k6/reports:/reports
-    entrypoint: ["/usr/local/bin/k6", "run", "/scripts/amqp_stress.js", "--summary-export", "/reports/summary.json"]
+    entrypoint:
+      - /usr/local/bin/k6
+      - run
+      - /scripts/amqp_stress.js
+      - --summary-export
+      - /reports/summary.json
