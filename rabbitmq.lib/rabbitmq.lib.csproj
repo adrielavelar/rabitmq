@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>RabbitMQ.Pkg</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.2</Version>
     <Authors>SeuTime</Authors>
     <Description>Cliente de alto nível para RabbitMQ com publicação/consumo resilientes, utilitários de topologia e health check.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
